@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ToggleBoys Ligan 2025</title>
+    <!-- Meta viewport for responsive design -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Dark mode styles with responsive adjustments */
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        .header-container {
+            width: 80%;
+            margin: 0 auto 20px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 28px;
+            color: #ffffff;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            padding-right: 10px;
+            /* adds spacing from the right edge */
+        }
+
+        .btn {
+            background-color: #555;
+            color: #ffffff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background-color: #666;
+        }
+
+        h3 {
+            text-align: center;
+            color: #ffffff;
+            margin: 10px 0;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            margin: 20px auto;
+            background-color: #1e1e1e;
+        }
+
+        th,
+        td {
+            border: 1px solid #444;
+            padding: 8px 12px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #333;
+            color: #e0e0e0;
+        }
+
+        td {
+            color: #e0e0e0;
+        }
+
+        b {
+            color: #ffffff;
+        }
+
+        #message {
+            text-align: center;
+            margin-top: 20px;
+            color: #e0e0e0;
+        }
+
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+                font-size: 16px;
+            }
+
+            .header-container,
+            table {
+                width: 100%;
+            }
+
+            .btn {
+                font-size: 16px;
+                padding: 10px 14px;
+            }
+
+            h2 {
+                font-size: 24px;
+            }
+
+            h3 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header-container">
+        <h2>ToggleBoys Ligan 2025</h2>
+        <div class="buttons">
+            <a class="btn"
+                href="https://docs.google.com/spreadsheets/d/1bw6pXc641nv13V9ECxuwjTPzJq1z3ubpMsTQSVQewVs/edit?usp=sharing"
+                target="_blank">Manuell Inmatning</a>
+            <a class="btn" href="https://forms.gle/MShZKyWr9vmKfCz68" target="_blank">Registrera ny runda</a>
+        </div>
+    </div>
+
+    <div id="message"></div>
+
+    <!-- Ställning Table -->
+    <h3>Ställning</h3>
+    <div id="stallningContainer"></div>
+
+    <!-- Summary Table -->
+    <h3>Bästa resultat per bana</h3>
+    <div id="summaryContainer"></div>
+
+    <!-- Detailed Table -->
+    <h3>Alla tidigare rundor</h3>
+    <div id="tableContainer"></div>
+
+    <!-- Count Table -->
+    <h3>Antal rundor</h3>
+    <div id="countContainer"></div>
+
+    <!-- Include SheetJS library from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // IMPORTANT: Use the export URL for your Google Sheet so that it returns an XLSX file.
+    // Replace the spreadsheet ID with your own if needed.
+    const fileURL = 'https://docs.google.com/spreadsheets/d/1bw6pXc641nv13V9ECxuwjTPzJq1z3ubpMsTQSVQewVs/export';
+    // If you encounter CORS issues, consider using a proxy:
+    // const fileURL = 'https://cors-anywhere.herokuapp.com/https://docs.google.com/spreadsheets/d/1bw6pXc641nv13V9ECxuwjTPzJq1z3ubpMsTQSVQewVs/export';
+
+    document.addEventListener('DOMContentLoaded', function() {
+      fetchExcelFile(fileURL);
+    });
+
+    function fetchExcelFile(url) {
+      document.getElementById('message').textContent = 'Loading Excel file...';
+      fetch(url)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("Network response was not ok: " + response.statusText);
+          }
+          return response.arrayBuffer();
+        })
+        .then(data => {
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          let dataArray = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+          console.log("Original Data Array:", dataArray);
+          // Remove rows that are completely empty (except header)
+          dataArray = dataArray.filter((row, i) => i === 0 || row.some(cell => cell.toString().trim() !== ''));
+          // Remove the first column ("Tidstämpel") from every row
+          dataArray = dataArray.map(row => row.slice(1));
+          // Now, header becomes: [ "Anläggning", "Johan", "Jimmie", "Marcus", "Sejaf", "Andreas", "Datum" ]
+          console.log("Adjusted Data Array:", dataArray);
+          buildStallning(dataArray);
+          buildSummary(dataArray);
+          buildDetailedTable(dataArray);
+          buildCountTable(dataArray);
+          document.getElementById('message').textContent = '';
+        })
+        .catch(error => {
+          console.error("Error fetching or processing the Excel file:", error);
+          document.getElementById('message').textContent = "Error: " + error.message;
+        });
+    }
+
+    // ----------------- Detailed Table ("Alla tidigare rundor") -----------------
+    function buildDetailedTable(dataArray) {
+      if (!dataArray || dataArray.length === 0) {
+        document.getElementById('tableContainer').textContent = "No data to display.";
+        return;
+      }
+      const table = document.createElement('table');
+      // Header: [ "Anläggning", "Johan", "Jimmie", "Marcus", "Sejaf", "Andreas", "Datum" ]
+      dataArray.forEach((row, rowIndex) => {
+        const tr = document.createElement('tr');
+        row.forEach((cellValue, colIndex) => {
+          const cell = document.createElement(rowIndex === 0 ? 'th' : 'td');
+          // Format "Datum" column (header "Datum" is at index 6)
+          if (rowIndex !== 0 && dataArray[0][colIndex] === "Datum") {
+            if (cellValue instanceof Date) {
+              cellValue = cellValue.toLocaleDateString('sv-SE', { day: '2-digit', month: 'short' });
+            } else if (typeof cellValue === 'number') {
+              cellValue = XLSX.SSF.format("dd-mmm", cellValue);
+            }
+          }
+          // For score cells (persons are in indices 1 to 5) display in bold.
+          if (rowIndex !== 0 && colIndex >= 1 && colIndex <= 5) {
+            cell.innerHTML = cellValue.toString().trim() === '' ? '<b>-</b>' : '<b>' + cellValue + '</b>';
+          } else {
+            cell.innerHTML = cellValue.toString().trim() === '' ? '<b>-</b>' : cellValue;
+          }
+          tr.appendChild(cell);
+        });
+        table.appendChild(tr);
+      });
+      document.getElementById('tableContainer').innerHTML = "";
+      document.getElementById('tableContainer').appendChild(table);
+    }
+
+    // ----------------- Summary Table ("Bästa resultat per bana") -----------------
+    function buildSummary(dataArray) {
+      if (!dataArray || dataArray.length < 2) return;
+      const headerRow = dataArray[0]; // [ "Anläggning", "Johan", "Jimmie", "Marcus", "Sejaf", "Andreas", "Datum" ]
+      const persons = headerRow.slice(1, 6); // persons: indices 1-5
+      if (persons.length === 0) return;
+      const validRows = dataArray.slice(1).filter(row => {
+        return row.slice(1, 6).filter(cell => cell.toString().trim() !== '').length >= 3;
+      });
+      // Group rounds by venue (from index 0), case-insensitive.
+      const groups = {};
+      validRows.forEach(row => {
+        let rawVenue = row[0].toString().trim();
+        let key = rawVenue.toLowerCase();
+        if (!groups[key]) {
+          groups[key] = { name: rawVenue.charAt(0).toUpperCase() + rawVenue.slice(1).toLowerCase(), rows: [] };
+        }
+        groups[key].rows.push(row);
+      });
+      const venues = Object.keys(groups);
+      // For each person and each venue, collect their rounds (using "Datum" from index 6).
+      const summary = {}; // summary[person][venue] = array of { date, score, rawDate }
+      persons.forEach((person, pIndex) => {
+        summary[person] = {};
+        venues.forEach(venue => {
+          let rounds = [];
+          groups[venue].rows.forEach(row => {
+            let cell = row[1 + pIndex]; // persons are in indices 1 to 5.
+            if (cell.toString().trim() !== '') {
+              let score = parseFloat(cell);
+              if (!isNaN(score)) {
+                let rawDate = row[6]; // "Datum" column.
+                let formattedDate = '';
+                let dateObj;
+                if (rawDate instanceof Date) {
+                  dateObj = rawDate;
+                  formattedDate = rawDate.toLocaleDateString('sv-SE', { day: '2-digit', month: 'short' });
+                } else {
+                  dateObj = new Date(rawDate);
+                  if (!isNaN(dateObj)) {
+                    formattedDate = dateObj.toLocaleDateString('sv-SE', { day: '2-digit', month: 'short' });
+                  } else {
+                    formattedDate = rawDate;
+                  }
+                }
+                rounds.push({ date: formattedDate, score: score, rawDate: dateObj });
+              }
+            }
+          });
+          rounds.sort((a, b) => a.score - b.score);
+          summary[person][venue] = rounds.slice(0, 3);
+        });
+      });
+      // For each venue and each position (0,1,2), assign points.
+      const summaryPoints = {}; // summaryPoints[venue][person] = array of points for each position.
+      venues.forEach(venue => {
+        summaryPoints[venue] = {};
+        for (let pos = 0; pos < 3; pos++) {
+          let posEntries = [];
+          persons.forEach(person => {
+            let rounds = summary[person][venue];
+            if (rounds && rounds.length > pos) {
+              posEntries.push({ person: person, score: rounds[pos].score });
+            }
+          });
+          posEntries.sort((a, b) => a.score - b.score);
+          let pointsMapping = {};
+          let uniqueRank = 1;
+          let i = 0;
+          while (i < posEntries.length) {
+            let start = i;
+            while (i < posEntries.length && posEntries[i].score === posEntries[start].score) {
+              i++;
+            }
+            let pts = 0;
+            if (uniqueRank === 1) pts = 3;
+            else if (uniqueRank === 2) pts = 2;
+            else if (uniqueRank === 3) pts = 1;
+            else pts = 0;
+            for (let j = start; j < i; j++) {
+              let pers = posEntries[j].person;
+              if (!pointsMapping[pers]) pointsMapping[pers] = 0;
+              pointsMapping[pers] += pts;
+            }
+            uniqueRank++;
+          }
+          persons.forEach(person => {
+            if (!summaryPoints[venue][person]) summaryPoints[venue][person] = [];
+            summaryPoints[venue][person][pos] = pointsMapping[person] || 0;
+          });
+        }
+      });
+      // Attach points to each summary entry.
+      persons.forEach(person => {
+        venues.forEach(venue => {
+          if (summary[person][venue]) {
+            summary[person][venue].forEach((entry, idx) => {
+              entry.pts = summaryPoints[venue][person] ? summaryPoints[venue][person][idx] || 0 : 0;
+            });
+            // For display: sort rounds by points descending then date ascending.
+            summary[person][venue].sort((a, b) => {
+              if (b.pts !== a.pts) return b.pts - a.pts;
+              return a.rawDate - b.rawDate;
+            });
+          }
+        });
+      });
+      const table = document.createElement('table');
+      const trHeader = document.createElement('tr');
+      const thName = document.createElement('th');
+      thName.textContent = "Namn";
+      trHeader.appendChild(thName);
+      venues.forEach(venue => {
+        const thVenue = document.createElement('th');
+        thVenue.textContent = groups[venue].name;
+        trHeader.appendChild(thVenue);
+      });
+      table.appendChild(trHeader);
+      persons.forEach(person => {
+        const tr = document.createElement('tr');
+        const tdName = document.createElement('td');
+        tdName.textContent = person;
+        tr.appendChild(tdName);
+        venues.forEach(venue => {
+          const td = document.createElement('td');
+          const entries = summary[person][venue];
+          if (entries && entries.length > 0) {
+            td.innerHTML = entries.map(e => e.date + " - " + "<b>" + e.score + "</b>" + (e.pts ? " (" + e.pts + "p)" : "")).join("<br>");
+          } else {
+            td.innerHTML = '<b>-</b>';
+          }
+          tr.appendChild(td);
+        });
+        table.appendChild(tr);
+      });
+      document.getElementById('summaryContainer').innerHTML = "";
+      document.getElementById('summaryContainer').appendChild(table);
+    }
+
+    // ----------------- Ställning Table -----------------
+    function buildStallning(dataArray) {
+      if (!dataArray || dataArray.length < 2) return;
+      const headerRow = dataArray[0]; // ["Anläggning", "Johan", "Jimmie", "Marcus", "Sejaf", "Andreas", "Datum"]
+      const persons = headerRow.slice(1, 6); // persons: indices 1 to 5.
+      if (persons.length === 0) return;
+      const validRounds = dataArray.slice(1).filter(row => {
+        return row.slice(1, 6).filter(cell => cell.toString().trim() !== '').length >= 3;
+      });
+      const groups = {};
+      validRounds.forEach(row => {
+        let rawVenue = row[0].toString().trim();
+        let key = rawVenue.toLowerCase();
+        if (!groups[key]) {
+          groups[key] = { name: rawVenue.charAt(0).toUpperCase() + rawVenue.slice(1).toLowerCase(), rows: [] };
+        }
+        groups[key].rows.push(row);
+      });
+      const venues = Object.keys(groups);
+      // For each person and each venue, collect available scores (sorted ascending) – up to 3.
+      const personVenueScores = {};
+      persons.forEach((person, idx) => {
+        personVenueScores[person] = {};
+        venues.forEach(venue => {
+          let scores = [];
+          groups[venue].rows.forEach(row => {
+            let cell = row[1 + idx]; // persons are in indices 1 to 5.
+            if (cell.toString().trim() !== '') {
+              let score = parseFloat(cell);
+              if (!isNaN(score)) {
+                scores.push(score);
+              }
+            }
+          });
+          scores.sort((a, b) => a - b);
+          personVenueScores[person][venue] = scores.slice(0, 3);
+        });
+      });
+      // For each venue and for each position (0,1,2), rank persons and assign points.
+      const venuePoints = {};
+      venues.forEach(venue => {
+        venuePoints[venue] = {};
+        for (let pos = 0; pos < 3; pos++) {
+          let posEntries = [];
+          persons.forEach(person => {
+            let scores = personVenueScores[person][venue];
+            if (scores && scores.length > pos) {
+              posEntries.push({ person: person, score: scores[pos] });
+            }
+          });
+          posEntries.sort((a, b) => a.score - b.score);
+          let pointsMapping = {};
+          let uniqueRank = 1;
+          let i = 0;
+          while (i < posEntries.length) {
+            let start = i;
+            while (i < posEntries.length && posEntries[i].score === posEntries[start].score) {
+              i++;
+            }
+            let pts = 0;
+            if (uniqueRank === 1) pts = 3;
+            else if (uniqueRank === 2) pts = 2;
+            else if (uniqueRank === 3) pts = 1;
+            else pts = 0;
+            for (let j = start; j < i; j++) {
+              let pers = posEntries[j].person;
+              if (!pointsMapping[pers]) pointsMapping[pers] = 0;
+              pointsMapping[pers] += pts;
+            }
+            uniqueRank++;
+          }
+          persons.forEach(person => {
+            if (!venuePoints[venue][person]) venuePoints[venue][person] = 0;
+            if (pointsMapping[person]) {
+              venuePoints[venue][person] += pointsMapping[person];
+            }
+          });
+        }
+      });
+      // Sum total points per person across venues.
+      const totalPoints = {};
+      persons.forEach(person => {
+        totalPoints[person] = 0;
+        venues.forEach(venue => {
+          totalPoints[person] += (venuePoints[venue][person] || 0);
+        });
+      });
+      const table = document.createElement('table');
+      const trHeader = document.createElement('tr');
+      const thName = document.createElement('th');
+      thName.textContent = "Namn";
+      trHeader.appendChild(thName);
+      venues.forEach(venue => {
+        const thVenue = document.createElement('th');
+        thVenue.textContent = groups[venue].name;
+        trHeader.appendChild(thVenue);
+      });
+      const thTotal = document.createElement('th');
+      thTotal.textContent = "Total";
+      trHeader.appendChild(thTotal);
+      table.appendChild(trHeader);
+      let rows = persons.map(person => ({ person: person, total: totalPoints[person] }));
+      rows.sort((a, b) => b.total - a.total);
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        const tdName = document.createElement('td');
+        tdName.textContent = row.person;
+        tr.appendChild(tdName);
+        venues.forEach(venue => {
+          const td = document.createElement('td');
+          let pts = venuePoints[venue][row.person] || 0;
+          td.innerHTML = pts > 0 ? "<b>" + pts + "</b>" : '<b>-</b>';
+          tr.appendChild(td);
+        });
+        const tdTotal = document.createElement('td');
+        tdTotal.innerHTML = "<b>" + row.total + "</b>";
+        tr.appendChild(tdTotal);
+        table.appendChild(tr);
+      });
+      document.getElementById('stallningContainer').innerHTML = "";
+      document.getElementById('stallningContainer').appendChild(table);
+    }
+
+    // ----------------- Count Table ("Antal rundor") -----------------
+    function buildCountTable(dataArray) {
+      if (!dataArray || dataArray.length < 2) return;
+      const headerRow = dataArray[0];
+      const persons = headerRow.slice(1, 6); // persons: indices 1 to 5.
+      if (persons.length === 0) return;
+      const groups = {};
+      const counts = {};
+      persons.forEach(person => { counts[person] = {}; });
+      for (let i = 1; i < dataArray.length; i++) {
+        let row = dataArray[i];
+        if (row.slice(1, 6).filter(cell => cell.toString().trim() !== '').length < 3) continue;
+        let rawVenue = row[0].toString().trim();
+        if (rawVenue === '') continue;
+        let key = rawVenue.toLowerCase();
+        if (!groups[key]) {
+          groups[key] = rawVenue.charAt(0).toUpperCase() + rawVenue.slice(1).toLowerCase();
+        }
+        persons.forEach((person, pIndex) => {
+          let cellValue = row[1 + pIndex];
+          if (cellValue.toString().trim() !== '') {
+            if (!counts[person][key]) counts[person][key] = 0;
+            counts[person][key]++;
+          }
+        });
+      }
+      const venues = Object.keys(groups);
+      const table = document.createElement('table');
+      const trHeader = document.createElement('tr');
+      const thName = document.createElement('th');
+      thName.textContent = "Namn";
+      trHeader.appendChild(thName);
+      venues.forEach(venue => {
+        const thVenue = document.createElement('th');
+        thVenue.textContent = groups[venue];
+        trHeader.appendChild(thVenue);
+      });
+      const thTotal = document.createElement('th');
+      thTotal.textContent = "Total";
+      trHeader.appendChild(thTotal);
+      table.appendChild(trHeader);
+      persons.forEach(person => {
+        const tr = document.createElement('tr');
+        const tdName = document.createElement('td');
+        tdName.textContent = person;
+        tr.appendChild(tdName);
+        let totalCount = 0;
+        venues.forEach(venue => {
+          const td = document.createElement('td');
+          let cnt = counts[person][venue] || 0;
+          totalCount += cnt;
+          td.textContent = cnt > 0 ? cnt : "-";
+          tr.appendChild(td);
+        });
+        const tdTotal = document.createElement('td');
+        tdTotal.innerHTML = "<b>" + totalCount + "</b>";
+        tr.appendChild(tdTotal);
+        table.appendChild(tr);
+      });
+      document.getElementById('countContainer').innerHTML = "";
+      document.getElementById('countContainer').appendChild(table);
+    }
+    </script>
+</body>
+
+</html>
